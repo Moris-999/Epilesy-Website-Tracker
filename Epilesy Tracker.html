@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epilepsy Tracker Web App</title>
+<style>
+  /* ===== GLOBAL ===== */
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+  body { background: #f9f9f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background 0.5s; }
+
+  /* ===== LOGIN / REGISTER ===== */
+  .auth-container { width: 350px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; position: relative; overflow: hidden; }
+  .auth-container h1 { margin-bottom: 20px; color: #007AFF; }
+  .auth-container input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; }
+  .auth-container button { width: 100%; padding: 10px; margin-top: 10px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer; transition: background 0.3s; }
+  .auth-container button:hover { background: #0056b3; }
+  .switch-link { color: #007AFF; cursor: pointer; margin-top: 10px; display: inline-block; transition: color 0.3s; }
+  .switch-link:hover { color: #0056b3; }
+
+  /* ===== DASHBOARD ===== */
+  .dashboard { display: none; width: 90%; max-width: 1000px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+  header { background: #007AFF; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+  header h2 { font-size: 1.5em; }
+  header .logout { cursor: pointer; background: #0056b3; padding: 6px 12px; border-radius: 4px; }
+  nav { display: flex; background: #f1f1f1; }
+  nav button { flex: 1; padding: 12px; border: none; cursor: pointer; background: #f1f1f1; transition: background 0.3s; }
+  nav button.active { background: #007AFF; color: white; }
+  nav button:hover { background: #007AFF; color: white; }
+  .tab { display: none; padding: 20px; animation: fadeIn 0.5s; }
+  @keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+
+  /* ===== CARDS ===== */
+  .cards { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+  .card { flex: 1; min-width: 150px; background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; transition: transform 0.3s; }
+  .card:hover { transform: translateY(-5px); }
+  .card h3 { margin-bottom: 10px; color: #555; }
+  .card p { font-size: 1.5em; font-weight: bold; }
+
+  /* ===== TABLES ===== */
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+  th { background: #eee; }
+
+  /* ===== FORMS ===== */
+  form input, form button { padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #ccc; }
+  form button { background: #007AFF; color: white; border: none; cursor: pointer; }
+  form button:hover { background: #0056b3; }
+
+  /* ===== CHARTS ===== */
+  canvas { margin: 20px 0; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<!-- ===== LOGIN / REGISTER ===== -->
+<div class="auth-container" id="authContainer">
+  <h1 id="authTitle">Login</h1>
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="password" placeholder="Password">
+  <button id="authButton">Login</button>
+  <div class="switch-link" id="switchLink">Don't have an account? Register</div>
+  <p id="authMessage" style="color:red; margin-top:10px;"></p>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="dashboard" id="dashboard">
+  <header>
+    <h2>🧠 Epilepsy Tracker</h2>
+    <div class="logout" id="logoutBtn">Logout</div>
+  </header>
+  <nav>
+    <button class="tablink active" data-tab="home">Home</button>
+    <button class="tablink" data-tab="medications">Medications</button>
+    <button class="tablink" data-tab="seizures">Seizures</button>
+    <button class="tablink" data-tab="predictor">AI Predictor</button>
+    <button class="tablink" data-tab="analytics">Analytics</button>
+  </nav>
+
+  <div class="tab" id="home">
+    <div class="cards">
+      <div class="card"><h3>Total Seizures</h3><p id="totalSeizures">0</p></div>
+      <div class="card"><h3>Medications</h3><p id="totalMeds">0</p></div>
+    </div>
+  </div>
+
+  <div class="tab" id="medications">
+    <h3>Medications</h3>
+    <form id="medForm">
+      <input name="name" placeholder="Name" required>
+      <input name="dose" placeholder="Dose" required>
+      <input name="time" placeholder="Time" required>
+      <button type="submit">Add</button>
+    </form>
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Dose</th><th>Time</th></tr></thead>
+      <tbody id="medTable"></tbody>
+    </table>
+  </div>
+
+  <div class="tab" id="seizures">
+    <h3>Seizures</h3>
+    <form id="szForm">
+      <input type="date" name="date" required>
+      <input name="duration" placeholder="Duration" required>
+      <input name="trigger" placeholder="Trigger">
+      <input name="notes" placeholder="Notes">
+      <button type="submit">Add Seizure</button>
+    </form>
+    <table>
+      <thead><tr><th>ID</th><th>Date</th><th>Duration</th><th>Trigger</th><th>Notes</th></tr></thead>
+      <tbody id="szTable"></tbody>
+    </table>
+  </div>
+
+  <div class="tab" id="predictor">
+    <h3>Seizure Risk Predictor</h3>
+    <form id="predictForm">
+      <input type="number" name="age" placeholder="Age" min="0" max="120" required>
+      <input type="number" name="sleep" placeholder="Sleep Hours" min="0" max="24" required>
+      <input type="number" name="stress" placeholder="Stress Level 0-10" min="0" max="10" required>
+      <button type="submit">Predict</button>
+    </form>
+    <p id="predictionResult">Prediction: N/A</p>
+  </div>
+
+  <div class="tab" id="analytics">
+    <h3>Analytics</h3>
+    <canvas id="seizureChart" height="100"></canvas>
+    <canvas id="triggerChart" height="100"></canvas>
+    <canvas id="triggerPie" height="100"></canvas>
+  </div>
+</div>
+
+<script>
+/* ===== LOGIN & REGISTER SYSTEM ===== */
+const authContainer = document.getElementById('authContainer');
+const dashboard = document.getElementById('dashboard');
+const authTitle = document.getElementById('authTitle');
+const authButton = document.getElementById('authButton');
+const switchLink = document.getElementById('switchLink');
+const authMessage = document.getElementById('authMessage');
+
+let isLogin = true;
+
+function getUsers() {
+  return JSON.parse(localStorage.getItem('users') || '{}');
+}
+
+function saveUser(username, password) {
+  const users = getUsers();
+  users[username] = password;
+  localStorage.setItem('users', JSON.stringify(users));
+}
+
+authButton.onclick = () => {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const users = getUsers();
+
+  if(isLogin) {
+    if(users[username] && users[username] === password) {
+      authContainer.style.display = 'none';
+      dashboard.style.display = 'block';
+      authMessage.innerText = '';
+      loadTables();
+      initCharts();
+    } else { authMessage.innerText = 'Invalid credentials'; }
+  } else {
+    if(users[username]) { authMessage.innerText = 'Username exists'; }
+    else { saveUser(username,password); authMessage.innerText='Registered! Login now'; isLogin=true; authTitle.innerText='Login'; authButton.innerText='Login'; switchLink.innerText="Don't have an account? Register"; }
+  }
+};
+
+switchLink.onclick = () => {
+  isLogin = !isLogin;
+  authTitle.innerText = isLogin ? 'Login':'Register';
+  authButton.innerText = isLogin ? 'Login':'Register';
+  switchLink.innerText = isLogin ? "Don't have an account? Register":"Already have account? Login";
+  authMessage.innerText='';
+};
+
+/* ===== LOGOUT ===== */
+document.getElementById('logoutBtn').onclick = () => {
+  dashboard.style.display = 'none';
+  authContainer.style.display = 'block';
+};
+
+/* ===== TAB SWITCHING ===== */
+document.querySelectorAll('.tablink').forEach(btn => {
+  btn.addEventListener('click', e => {
+    document.querySelectorAll('.tablink').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab').forEach(t=>t.style.display='none');
+    document.getElementById(btn.dataset.tab).style.display='block';
+  });
+});
+
+/* ===== DATA STORAGE ===== */
+let meds = [];
+let seizures = [];
+
+/* ===== LOAD TABLES ===== */
+function loadTables(){
+  const medTbody = document.getElementById('medTable');
+  medTbody.innerHTML='';
+  meds.forEach((m,i)=> medTbody.innerHTML+=`<tr><td>${i+1}</td><td>${m.name}</td><td>${m.dose}</td><td>${m.time}</td></tr>`);
+  document.getElementById('totalMeds').innerText = meds.length;
+
+  const szTbody = document.getElementById('szTable');
+  szTbody.innerHTML='';
+  seizures.forEach((s,i)=> szTbody.innerHTML+=`<tr><td>${i+1}</td><td>${s.date}</td><td>${s.duration}</td><td>${s.trigger}</td><td>${s.notes}</td></tr>`);
+  document.getElementById('totalSeizures').innerText = seizures.length;
+}
+
+/* ===== FORM HANDLERS ===== */
+document.getElementById('medForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const form = e.target;
+  meds.push({name:form.name.value,dose:form.dose.value,time:form.time.value});
+  form.reset(); loadTables();
+});
+
+document.getElementById('szForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const form = e.target;
+  seizures.push({date:form.date.value,duration:form.duration.value,trigger:form.trigger.value,notes:form.notes.value});
+  form.reset(); loadTables();
+});
+
+/* ===== AI PREDICTOR ===== */
+document.getElementById('predictForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const age=e.target.age.value, sleep=e.target.sleep.value, stress=e.target.stress.value;
+  let risk = (sleep<6 || stress>7 || age>50)? 'HIGH RISK':'LOW RISK';
+  document.getElementById('predictionResult').innerText='Prediction: '+risk;
+});
+
+/* ===== CHARTS ===== */
+function initCharts(){
+  const seizureMonths = ['2026-01','2026-02','2026-03'];
+  const seizureCounts = [2,1,2];
+  const triggers = ['Stress','Sleep','Unknown'];
+  const triggerCounts = [2,1,1];
+
+  new Chart(document.getElementById('seizureChart'),{type:'bar',data:{labels:seizureMonths,datasets:[{label:'Seizures',data:seizureCounts,backgroundColor:'red'}]}});
+  new Chart(document.getElementById('triggerChart'),{type:'bar',data:{labels:triggers,datasets:[{label:'Trigger Frequency',data:triggerCounts,backgroundColor:'orange'}]}});
+  new Chart(document.getElementById('triggerPie'),{type:'pie',data:{labels:triggers,datasets:[{data:triggerCounts,backgroundColor:['#FF6384','#36A2EB','#FFCE56','#8AFF33','#FF33F6']}]}});
+}
+</script>
+
+</body>
+</html>
